@@ -9,7 +9,6 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { makeInvoiceNo } from './invoice-no';
 
 function moneyAdd(a: string, b: string) {
-  // numeric strings -> number (для MVP ок). Если нужно строго — подключим decimal.js
   return (Number(a) + Number(b)).toFixed(2);
 }
 
@@ -48,7 +47,6 @@ export class InvoicesService {
       throw new BadRequestException('Some orders were not found');
     }
 
-    // Проверка: все заказы должны быть этого клиента
     const wrong = orders.find((o) => o.customer.id !== dto.customerId);
     if (wrong) throw new BadRequestException('All orders must belong to the same customer');
 
@@ -62,7 +60,6 @@ export class InvoicesService {
       total: '0.00',
     });
 
-    // Сначала сохраняем invoice, чтобы был id
     const savedInvoice = await this.invoicesRepo.save(invoice);
 
     let total = '0.00';

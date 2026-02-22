@@ -20,13 +20,13 @@ export class Invoice {
 
   @Index({ unique: true })
   @Column({ type: 'varchar', length: 50 })
-  invoiceNo!: string; // TY1041
+  invoiceNo!: string; 
 
   @ManyToOne(() => Customer, (c) => c.invoices, { onDelete: 'RESTRICT' })
   customer!: Customer;
 
   @Column({ type: 'date' })
-  issueDate!: string; // YYYY-MM-DD
+  issueDate!: string; 
 
   @Column({ type: 'date', nullable: true })
   dueDate?: string | null;
