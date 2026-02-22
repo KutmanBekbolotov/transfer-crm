@@ -1,8 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InvoicesService } from '../invoices.service';
 import { CompanyProfileService } from '../../company/company-profile.service';
 import { renderInvoiceHtml } from './invoice-template';
 import puppeteer from 'puppeteer';
+import * as fs from 'node:fs';
+
+function resolveChromeExecutablePath(): string | undefined {
+  const fromEnv = process.env.CHROME_PATH?.trim();
+  if (fromEnv) return fromEnv;
+
+  const candidates = [
+    '/opt/google/chrome/chrome',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+
+  return candidates.find((path) => fs.existsSync(path));
+}
 
 @Injectable()
 export class InvoicePdfService {
@@ -19,10 +38,21 @@ export class InvoicePdfService {
 
     const html = renderInvoiceHtml({ invoice, company });
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    const executablePath = resolveChromeExecutablePath();
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>>;
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        ...(executablePath ? { executablePath } : { channel: 'chrome' }),
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `Failed to launch Google Chrome for PDF generation. Set CHROME_PATH to your Chrome binary path. Details: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
 
     try {
       const page = await browser.newPage();

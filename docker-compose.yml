@@ -17,6 +17,7 @@ services:
       retries: 20
 
   backend:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,6 +31,7 @@ services:
       DB_USER: nestapp
       DB_PASS: nestapp
       DB_NAME: nestapp
+      CHROME_PATH: /usr/bin/google-chrome-stable
     ports:
       - "3000:3000"
     volumes:

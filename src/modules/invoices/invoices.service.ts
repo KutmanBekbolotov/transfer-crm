@@ -13,6 +13,19 @@ function moneyAdd(a: string, b: string) {
   return (Number(a) + Number(b)).toFixed(2);
 }
 
+function vehicleTypeLabel(vehicleType?: string | null) {
+  switch (vehicleType) {
+    case 'sedan':
+      return 'Седан';
+    case 'minivan':
+      return 'Минивен';
+    case 'suv':
+      return 'Джип';
+    default:
+      return 'Не указан';
+  }
+}
+
 @Injectable()
 export class InvoicesService {
   constructor(
@@ -56,9 +69,19 @@ export class InvoicesService {
     const items: InvoiceItem[] = [];
 
     for (const o of orders) {
-      const description = `Transfer: ${o.fromLocation} → ${o.toLocation} (${new Date(o.pickupAt).toISOString()})`;
-      const unitPrice = String(o.price);
-      const amount = unitPrice; // qty=1
+      const pickupAt = new Intl.DateTimeFormat('ru-RU', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date(o.pickupAt));
+      const carsCount = Math.max(1, Number(o.carsCount ?? 1));
+      const amountNumber = Number(o.price);
+      const safeAmount = Number.isFinite(amountNumber) ? amountNumber : 0;
+      const amount = safeAmount.toFixed(2);
+      const unitPrice = (safeAmount / carsCount).toFixed(2);
+      const description =
+        `Трансфер: ${o.fromLocation} → ${o.toLocation} (${pickupAt})` +
+        ` • Авто: ${vehicleTypeLabel(o.vehicleType)}` +
+        ` • Машин: ${carsCount}`;
 
       total = moneyAdd(total, amount);
 
@@ -66,7 +89,7 @@ export class InvoicesService {
         this.itemsRepo.create({
           invoice: savedInvoice,
           order: o,
-          qty: 1,
+          qty: carsCount,
           description,
           unitPrice,
           amount,

@@ -2,10 +2,25 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createCustomer, getCustomers, updateCustomer, type Customer } from "../api/endpoints";
 import {
-  Button, Card, CardContent, CircularProgress, Divider,
-  Stack, TextField, Typography
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Divider,
+  Stack,
+  TextField,
+  Typography,
 } from "@mui/material";
 import { CustomerDialog } from "../ui/CustomerDialog";
+
+type CustomerUpdatePayload = Partial<{
+  name: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+}>;
 
 export function CustomersPage() {
   const qc = useQueryClient();
@@ -27,16 +42,25 @@ export function CustomersPage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => updateCustomer(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: CustomerUpdatePayload }) => updateCustomer(id, payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 
+  const customers = data || [];
+  const withContacts = customers.filter((c) => c.contactPerson || c.phone || c.email).length;
+  const withAddress = customers.filter((c) => c.address).length;
+
   return (
-    <Stack spacing={2}>
-      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems="center" spacing={2}>
-        <Typography variant="h5">Клиенты</Typography>
+    <Stack spacing={2.2}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={2}>
+        <Box>
+          <Typography className="page-title">Клиентская база</Typography>
+          <Typography variant="body2" className="page-subtitle" sx={{ mt: 0.6 }}>
+            Единый каталог клиентов для заказов и выставления счетов. Чем полнее карточки, тем быстрее работа команды.
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           onClick={() => {
@@ -48,32 +72,76 @@ export function CustomersPage() {
         </Button>
       </Stack>
 
-      <Card>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+        <Card className="surface-card metric-card" sx={{ flex: 1 }}>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary">
+              Всего клиентов
+            </Typography>
+            <Typography variant="h5" sx={{ mt: 0.6 }}>
+              {customers.length}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card className="surface-card metric-card" sx={{ flex: 1 }}>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary">
+              С контактами
+            </Typography>
+            <Typography variant="h5" sx={{ mt: 0.6 }}>
+              {withContacts}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card className="surface-card metric-card" sx={{ flex: 1 }}>
+          <CardContent>
+            <Typography variant="body2" color="text.secondary">
+              С заполненным адресом
+            </Typography>
+            <Typography variant="h5" sx={{ mt: 0.6 }}>
+              {withAddress}
+            </Typography>
+          </CardContent>
+        </Card>
+      </Stack>
+
+      <Card className="surface-card">
         <CardContent>
           <TextField
             fullWidth
-            label="Поиск (имя/телефон/email)"
+            label="Поиск по базе"
+            placeholder="Имя, телефон или электронная почта"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="surface-card">
         <CardContent>
           {isLoading && <CircularProgress />}
           {error && <Typography color="error">Ошибка загрузки</Typography>}
 
-          {(data || []).map((c) => (
+          {customers.map((c) => (
             <div key={c.id}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                justifyContent="space-between"
+                alignItems={{ xs: "flex-start", md: "center" }}
+                spacing={1.5}
+              >
                 <div>
                   <Typography variant="subtitle1" fontWeight={700}>{c.name}</Typography>
                   <Typography variant="body2" color="text.secondary">
                     {c.contactPerson ? `Контакт: ${c.contactPerson} • ` : ""}
-                    {c.phone ? `Тел: ${c.phone} • ` : ""}
-                    {c.email ? `Email: ${c.email}` : ""}
+                    {c.phone ? `Телефон: ${c.phone} • ` : ""}
+                    {c.email ? `Почта: ${c.email}` : ""}
                   </Typography>
+                  {c.address && (
+                    <Typography variant="body2" color="text.secondary">
+                      Адрес: {c.address}
+                    </Typography>
+                  )}
                 </div>
                 <Button
                   variant="outlined"
@@ -85,12 +153,12 @@ export function CustomersPage() {
                   Редактировать
                 </Button>
               </Stack>
-              <Divider sx={{ my: 1.5 }} />
+              <Divider className="soft-divider" sx={{ my: 1.5 }} />
             </div>
           ))}
 
           {!isLoading && (data?.length ?? 0) === 0 && (
-            <Typography color="text.secondary">Пока пусто</Typography>
+            <Typography color="text.secondary">Клиенты не найдены по текущему фильтру</Typography>
           )}
         </CardContent>
       </Card>

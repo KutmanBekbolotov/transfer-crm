@@ -10,16 +10,21 @@ export type Customer = {
 };
 
 export type OrderStatus = "draft" | "confirmed" | "done" | "canceled";
+export type PaymentStatus = "unpaid" | "paid";
+export type VehicleType = "sedan" | "minivan" | "suv";
 
 export type Order = {
   id: string;
   pickupAt: string;
   fromLocation: string;
   toLocation: string;
-  vehicleType?: string | null;
+  vehicleType?: VehicleType | null;
+  carsCount: number;
   driverName?: string | null;
   price: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentDueDate?: string | null;
   notes?: string | null;
   customer: Customer;
 };
@@ -66,7 +71,13 @@ export async function getCustomers(q?: string) {
 }
 
 // Orders
-export async function getOrders(params?: { customerId?: string; status?: OrderStatus; from?: string; to?: string }) {
+export async function getOrders(params?: {
+  customerId?: string;
+  status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  from?: string;
+  to?: string;
+}) {
   const res = await api.get<Order[]>("/orders", { params });
   return res.data;
 }
@@ -133,10 +144,13 @@ export async function createOrder(payload: {
   pickupAt: string;
   fromLocation: string;
   toLocation: string;
-  vehicleType?: string;
+  vehicleType?: VehicleType;
+  carsCount?: number;
   driverName?: string;
   price: string;
   status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
+  paymentDueDate?: string | null;
   notes?: string;
 }) {
   const res = await api.post<Order>("/orders", payload);
@@ -148,10 +162,13 @@ export async function updateOrder(id: string, payload: Partial<{
   pickupAt: string;
   fromLocation: string;
   toLocation: string;
-  vehicleType: string;
+  vehicleType: VehicleType;
+  carsCount: number;
   driverName: string;
   price: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentDueDate: string | null;
   notes: string;
 }>) {
   const res = await api.patch<Order>(`/orders/${id}`, payload);

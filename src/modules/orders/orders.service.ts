@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
-import { Order, OrderStatus } from './order.entity';
+import { Order, OrderStatus, PaymentStatus } from './order.entity';
 import { Customer } from '../customers/customer.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -23,9 +23,12 @@ export class OrdersService {
       fromLocation: dto.fromLocation,
       toLocation: dto.toLocation,
       vehicleType: dto.vehicleType ?? null,
+      carsCount: dto.carsCount ?? 1,
       driverName: dto.driverName ?? null,
       price: dto.price,
       status: dto.status ?? 'draft',
+      paymentStatus: dto.paymentStatus ?? 'unpaid',
+      paymentDueDate: dto.paymentDueDate ? dto.paymentDueDate.slice(0, 10) : null,
       notes: dto.notes ?? null,
     });
 
@@ -35,6 +38,7 @@ export class OrdersService {
   async findAll(params: {
     customerId?: string;
     status?: OrderStatus;
+    paymentStatus?: PaymentStatus;
     from?: string; // YYYY-MM-DD
     to?: string;   // YYYY-MM-DD
   }) {
@@ -42,6 +46,7 @@ export class OrdersService {
 
     if (params.customerId) where.customer = { id: params.customerId };
     if (params.status) where.status = params.status;
+    if (params.paymentStatus) where.paymentStatus = params.paymentStatus;
 
     if (params.from && params.to) {
       const fromDate = new Date(params.from + 'T00:00:00.000Z');
@@ -79,9 +84,14 @@ export class OrdersService {
     if (dto.fromLocation !== undefined) order.fromLocation = dto.fromLocation;
     if (dto.toLocation !== undefined) order.toLocation = dto.toLocation;
     if (dto.vehicleType !== undefined) order.vehicleType = dto.vehicleType ?? null;
+    if (dto.carsCount !== undefined) order.carsCount = dto.carsCount;
     if (dto.driverName !== undefined) order.driverName = dto.driverName ?? null;
     if (dto.price !== undefined) order.price = dto.price;
     if (dto.status !== undefined) order.status = dto.status;
+    if (dto.paymentStatus !== undefined) order.paymentStatus = dto.paymentStatus;
+    if (dto.paymentDueDate !== undefined) {
+      order.paymentDueDate = dto.paymentDueDate ? dto.paymentDueDate.slice(0, 10) : null;
+    }
     if (dto.notes !== undefined) order.notes = dto.notes ?? null;
 
     return this.ordersRepo.save(order);

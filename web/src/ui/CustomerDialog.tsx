@@ -85,7 +85,7 @@ export function CustomerDialog({ open, mode, initial, onClose, onSubmit }: Props
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
           <TextField
-            label="Email"
+            label="Электронная почта"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />

@@ -10,13 +10,51 @@ function esc(s: unknown) {
     .replaceAll("'", '&#39;');
 }
 
+function formatDateRu(value: unknown) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium' }).format(d);
+}
+
+function formatMoneyRu(value: unknown) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return String(value ?? '');
+  return new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
+function formatInvoiceStatus(status: unknown) {
+  const normalized = String(status ?? '');
+  switch (normalized) {
+    case 'draft':
+      return 'Черновик';
+    case 'sent':
+      return 'Отправлен';
+    case 'paid':
+      return 'Оплачен';
+    case 'canceled':
+      return 'Отменен';
+    default:
+      return normalized || '—';
+  }
+}
+
+function localizeDescription(value: unknown) {
+  const text = String(value ?? '');
+  return text.replace(/^Transfer:\s*/i, 'Трансфер: ');
+}
+
 export function renderInvoiceHtml(params: {
   invoice: Invoice;
   company: CompanyProfile | null;
 }) {
   const { invoice, company } = params;
 
-  const companyName = company?.companyName ?? 'Company Name';
+  const companyName = company?.companyName ?? 'Название компании';
   const address = company?.address ?? '';
   const taxId = company?.taxId ?? '';
   const website = company?.website ?? '';
@@ -30,28 +68,32 @@ export function renderInvoiceHtml(params: {
   const customerPhone = (invoice.customer as any)?.phone ?? '';
   const customerEmail = (invoice.customer as any)?.email ?? '';
 
-  const issueDate = invoice.issueDate ?? '';
-  const dueDate = invoice.dueDate ?? '';
+  const issueDate = formatDateRu(invoice.issueDate);
+  const dueDate = formatDateRu(invoice.dueDate);
   const paymentMethod = invoice.paymentMethod ?? '';
+  const invoiceStatus = formatInvoiceStatus(invoice.status);
+  const invoiceTotal = formatMoneyRu(invoice.total);
 
-  const rows = (invoice.items ?? []).map((it, idx) => {
-    return `
+  const rows = (invoice.items ?? [])
+    .map((it, idx) => {
+      return `
       <tr>
         <td class="c">${idx + 1}</td>
-        <td class="l">${esc(it.description)}</td>
+        <td class="l">${esc(localizeDescription(it.description))}</td>
         <td class="c">${esc(it.qty)}</td>
-        <td class="r">${esc(it.unitPrice)}</td>
-        <td class="r">${esc(it.amount)}</td>
+        <td class="r">${esc(formatMoneyRu(it.unitPrice))}</td>
+        <td class="r">${esc(formatMoneyRu(it.amount))}</td>
       </tr>
     `;
-  }).join('');
+    })
+    .join('');
 
   return `
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Invoice ${esc(invoice.invoiceNo)}</title>
+  <title>Счет ${esc(invoice.invoiceNo)}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 24px; }
@@ -74,7 +116,6 @@ export function renderInvoiceHtml(params: {
     .total .line { width: 320px; border: 1px solid #ddd; border-radius: 6px; padding: 10px; }
     .total-row { display:flex; justify-content: space-between; font-size: 14px; font-weight: 700; }
     .section { margin-top: 14px; }
-    .sign { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .small { font-size: 11px; }
   </style>
 </head>
@@ -83,82 +124,69 @@ export function renderInvoiceHtml(params: {
     <div class="brand">
       <h1>${esc(companyName)}</h1>
       <div class="muted">${esc(address)}</div>
-      ${taxId ? `<div class="muted">TIN: ${esc(taxId)}</div>` : ``}
+      ${taxId ? `<div class="muted">ИНН: ${esc(taxId)}</div>` : ``}
       ${website ? `<div class="muted">${esc(website)}</div>` : ``}
     </div>
 
     <div class="box" style="min-width: 320px;">
       <table class="kv">
-        <tr><td>Invoice No:</td><td><b>${esc(invoice.invoiceNo)}</b></td></tr>
-        <tr><td>Issue date:</td><td>${esc(issueDate)}</td></tr>
-        ${dueDate ? `<tr><td>Due date:</td><td>${esc(dueDate)}</td></tr>` : ``}
-        ${paymentMethod ? `<tr><td>Payment method:</td><td>${esc(paymentMethod)}</td></tr>` : ``}
-        <tr><td>Status:</td><td>${esc(invoice.status)}</td></tr>
+        <tr><td>Номер счета:</td><td><b>${esc(invoice.invoiceNo)}</b></td></tr>
+        <tr><td>Дата выставления:</td><td>${esc(issueDate || '—')}</td></tr>
+        ${dueDate ? `<tr><td>Срок оплаты:</td><td>${esc(dueDate)}</td></tr>` : ``}
+        ${paymentMethod ? `<tr><td>Способ оплаты:</td><td>${esc(paymentMethod)}</td></tr>` : ``}
+        <tr><td>Статус:</td><td>${esc(invoiceStatus)}</td></tr>
       </table>
     </div>
   </div>
 
   <div class="grid">
     <div class="box">
-      <div class="small muted">Bill To</div>
+      <div class="small muted">Заказчик</div>
       <div style="margin-top:6px;"><b>${esc(customerName)}</b></div>
-      ${contactPerson ? `<div>${esc(contactPerson)}</div>` : ``}
-      ${customerPhone ? `<div>${esc(customerPhone)}</div>` : ``}
-      ${customerEmail ? `<div>${esc(customerEmail)}</div>` : ``}
+      ${contactPerson ? `<div>Контакт: ${esc(contactPerson)}</div>` : ``}
+      ${customerPhone ? `<div>Телефон: ${esc(customerPhone)}</div>` : ``}
+      ${customerEmail ? `<div>Эл. почта: ${esc(customerEmail)}</div>` : ``}
     </div>
 
     <div class="box">
-      <div class="small muted">Service</div>
-      <div style="margin-top:6px;">Tour transfer services</div>
+      <div class="small muted">Услуги</div>
+      <div style="margin-top:6px;">Транспортные трансферные услуги</div>
     </div>
   </div>
 
-  <div class="title">INVOICE</div>
+  <div class="title">СЧЕТ НА ОПЛАТУ</div>
 
   <table class="items">
     <thead>
       <tr>
-        <th style="width:40px;" class="c">#</th>
-        <th class="l">Description</th>
-        <th style="width:60px;" class="c">Qty</th>
-        <th style="width:120px;" class="r">Unit price</th>
-        <th style="width:120px;" class="r">Amount</th>
+        <th style="width:40px;" class="c">№</th>
+        <th class="l">Описание</th>
+        <th style="width:60px;" class="c">Кол-во</th>
+        <th style="width:120px;" class="r">Цена</th>
+        <th style="width:120px;" class="r">Сумма</th>
       </tr>
     </thead>
     <tbody>
-      ${rows || `<tr><td class="c">1</td><td class="l">—</td><td class="c">1</td><td class="r">0.00</td><td class="r">0.00</td></tr>`}
+      ${rows || `<tr><td class="c">1</td><td class="l">—</td><td class="c">1</td><td class="r">0,00</td><td class="r">0,00</td></tr>`}
     </tbody>
   </table>
 
   <div class="total">
     <div class="line">
       <div class="total-row">
-        <div>TOTAL</div>
-        <div>${esc(invoice.total)}</div>
+        <div>ИТОГО</div>
+        <div>${esc(invoiceTotal)}</div>
       </div>
     </div>
   </div>
 
   <div class="section box">
-    <div class="small muted">Bank details</div>
+    <div class="small muted">Банковские реквизиты</div>
     <div style="margin-top:6px;">
-      ${bankName ? `<div><b>Bank:</b> ${esc(bankName)}</div>` : ``}
+      ${bankName ? `<div><b>Банк:</b> ${esc(bankName)}</div>` : ``}
       ${iban ? `<div><b>IBAN:</b> ${esc(iban)}</div>` : ``}
       ${swift ? `<div><b>SWIFT:</b> ${esc(swift)}</div>` : ``}
       ${notes ? `<div style="margin-top:8px;" class="muted">${esc(notes)}</div>` : ``}
-    </div>
-  </div>
-
-  <div class="sign">
-    <div class="box">
-      <div class="small muted">Prepared by</div>
-      <div style="margin-top:18px;">________________________</div>
-      <div class="muted small">Signature</div>
-    </div>
-    <div class="box">
-      <div class="small muted">Received by</div>
-      <div style="margin-top:18px;">________________________</div>
-      <div class="muted small">Signature</div>
     </div>
   </div>
 </body>
